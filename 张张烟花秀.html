@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>烟花秀 - 专属浪漫</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    
+    <!-- 配置Tailwind自定义颜色与字体 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        love: {
+                            light: '#FF9AA2',
+                            DEFAULT: '#FF6B6B',
+                            dark: '#E74C3C'
+                        },
+                        fireworks: {
+                            pink: '#FF69B4',
+                            purple: '#9370DB',
+                            blue: '#1E90FF',
+                            gold: '#FFD700',
+                            red: '#FF4500'
+                        }
+                    },
+                    fontFamily: {
+                        romantic: ['"Ma Shan Zheng"', 'cursive', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- 引入飘逸中文字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .text-shadow-glow {
+                text-shadow: 0 0 12px currentColor, 0 0 25px currentColor, 0 0 40px rgba(255,105,180,0.6);
+            }
+            .heart-beat {
+                animation: heartbeat 1.5s ease-in-out infinite;
+            }
+            .text-float {
+                animation: float 3s ease-in-out infinite;
+            }
+            /* 为每行文字独立漂浮，体现错落感 */
+            .float-line1 {
+                animation: floatLine1 3.2s ease-in-out infinite;
+            }
+            .float-line2 {
+                animation: floatLine2 3.5s ease-in-out infinite;
+            }
+        }
+        
+        @keyframes heartbeat {
+            0%, 100% { transform: scale(1); }
+            14% { transform: scale(1.1); }
+            28% { transform: scale(1); }
+            42% { transform: scale(1.1); }
+            70% { transform: scale(1); }
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        @keyframes floatLine1 {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(0.5deg); }
+        }
+        
+        @keyframes floatLine2 {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-8px) rotate(-0.3deg); }
+        }
+    </style>
+</head>
+<body class="overflow-hidden bg-black h-screen w-screen select-none">
+    <!-- 烟花主画布 -->
+    <canvas id="fireworksCanvas" class="absolute top-0 left-0 w-full h-full"></canvas>
+    
+    <!-- 七夕祝福区域 - 张张 与 你今天真好看 分为两行，更清晰浪漫 -->
+    <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center z-10 pointer-events-none w-full px-4">
+        <!-- 第一行：张张 -->
+        <div class="float-line1 text-[clamp(2.2rem,6vw,4.5rem)] font-romantic text-love-light text-shadow-glow leading-tight">
+            张张
+        </div>
+        <!-- 第二行：你今天真好看 心形点缀 -->
+        <div class="float-line2 mt-3 text-[clamp(1.7rem,4vw,3rem)] font-romantic text-love text-shadow-glow flex flex-wrap items-center justify-center gap-2">
+            <span>你今天真好看</span>
+            <i class="fa fa-heart text-love-light heart-beat" style="animation-duration: 1.2s;"></i>
+        </div>
+        <!-- 三个跳动的心形装饰，带来生机 -->
+        <div class="mt-5 flex justify-center items-center gap-4 text-[clamp(1.8rem,4vw,2.5rem)] text-love-dark heart-beat">
+            <i class="fa fa-heart"></i>
+            <i class="fa fa-heart" style="animation-delay: 0.3s;"></i>
+            <i class="fa fa-heart" style="animation-delay: 0.6s;"></i>
+        </div>
+    </div>
+    
+    <script>
+        // ---------- 豪华烟花特效 ----------
+        const canvas = document.getElementById('fireworksCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 画布尺寸自适应
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // 更丰富的烟花色彩盘 (浪漫升级)
+        const fireworkColorPalettes = [
+            ['#FF69B4', '#FF85A1', '#FFB6C1', '#FFC0CB', '#FF1493'],     // 粉红梦幻
+            ['#9370DB', '#8A2BE2', '#BA55D3', '#DA70D6', '#EE82EE'],     // 紫色迷情
+            ['#1E90FF', '#00BFFF', '#87CEFA', '#00CED1', '#40E0D0'],     // 湛蓝星辰
+            ['#FFD700', '#FFA500', '#FFC107', '#FFECB3', '#FFB347'],     // 金色麦浪
+            ['#FF4500', '#FF6347', '#FF8C00', '#FFA07A', '#FF3B3F']       // 炽热红霞
+        ];
+        
+        function getRandomColorPalette() {
+            return fireworkColorPalettes[Math.floor(Math.random() * fireworkColorPalettes.length)];
+        }
+        
+        // ---------- 增强粒子类，带拖尾光晕感 ----------
+        class Particle {
+            constructor(x, y, palette, explosionType, isSpecial = false) {
+                this.x = x;
+                this.y = y;
+                this.palette = palette;
+                // 随机颜色从调色板选出，特殊粒子可柔和更闪
+                this.color = palette[Math.floor(Math.random() * palette.length)];
+                
+                // 粒子基础尺寸与速度调节 (依据爆炸类型)
+                let baseRadius = 1.5;
+                let baseSpeed = 2.2;
+                switch(explosionType) {
+                    case 'star':
+                        baseRadius = Math.random() * 1.8 + 1.3;
+                        baseSpeed = Math.random() * 2.8 + 2.2;
+                        break;
+                    case 'radial':
+                        baseRadius = Math.random() * 1.6 + 1;
+                        baseSpeed = Math.random() * 3.5 + 1.8;
+                        break;
+                    case 'heartburst':   // 新增心形爆裂效果
+                        baseRadius = Math.random() * 2 + 1.2;
+                        baseSpeed = Math.random() * 3 + 2;
+                        break;
+                    default:
+                        baseRadius = Math.random() * 2 + 0.8;
+                        baseSpeed = Math.random() * 3 + 1.5;
+                }
+                
+                this.radius = baseRadius;
+                this.speed = baseSpeed;
+                
+                // 生成方向更加有韵律
+                let angle;
+                if (explosionType === 'heartburst') {
+                    // 心形爆裂时，部分粒子沿爱心轮廓方向
+                    angle = Math.random() * Math.PI * 2;
+                } else {
+                    angle = Math.random() * Math.PI * 2;
+                }
+                
+                this.velocity = {
+                    x: Math.cos(angle) * this.speed * (Math.random() * 0.8 + 0.6),
+                    y: Math.sin(angle) * this.speed * (Math.random() * 0.8 + 0.6)
+                };
+                
+                // 动态旋转增加华丽度
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotationSpeed = (Math.random() - 0.5) * 0.12;
+                
+                // 物理特性：重力，阻力
+                this.gravity = 0.045;
+                this.airResistance = 0.985;
+                this.alpha = 1;
+                // 淡出速度差异化
+                this.fade = Math.random() * 0.012 + 0.004;
+                
+                // 额外闪烁属性 (让部分粒子有明暗呼吸感)
+                this.twinkle = Math.random() > 0.7;
+                this.twinkleSpeed = Math.random() * 0.05 + 0.02;
+                this.twinklePhase = Math.random() * Math.PI * 2;
+            }
+            
+            update() {
+                // 物理运动
+                this.velocity.y += this.gravity;
+                this.velocity.x *= this.airResistance;
+                this.velocity.y *= this.airResistance;
+                this.x += this.velocity.x;
+                this.y += this.velocity.y;
+                
+                // 旋转更新
+                this.rotation += this.rotationSpeed;
+                
+                // 透明度衰减
+                this.alpha -= this.fade;
+                
+                // 闪烁效果: 仅用于视觉丰富度
+                if (this.twinkle && this.alpha > 0.1) {
+                    // 不对透明度直接干涉绘制时做动态alpha复用，仅在draw里调整色彩亮度感觉，简单起见保留alpha叠加
+                }
+            }
+            
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                // 混合形状: 星星或圆形，增加烟花多样性
+                const shapeType = Math.random();
+                if (shapeType > 0.75) {
+                    // 绘制菱形小颗粒（闪耀感）
+                    ctx.fillRect(-this.radius/1.5, -this.radius/1.5, this.radius, this.radius);
+                } else if (shapeType > 0.5) {
+                    // 圆点
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    // 小三角形装饰
+                    ctx.beginPath();
+                    for(let i = 0; i < 3; i++) {
+                        const angleTri = (i * Math.PI * 2 / 3);
+                        const xTri = Math.cos(angleTri) * this.radius;
+                        const yTri = Math.sin(angleTri) * this.radius;
+                        if(i === 0) ctx.moveTo(xTri, yTri);
+                        else ctx.lineTo(xTri, yTri);
+                    }
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+        
+        // 烟花类增加心形爆炸模式，更浪漫
+        class Firework {
+            constructor(x, y) {
+                this.x = x || Math.random() * canvas.width;
+                this.y = y || Math.random() * canvas.height * 0.75 + 50;
+                
+                // 爆炸类型新增 心形爆炸（heartburst）
+                this.explosionTypes = ['random', 'star', 'radial', 'heartburst'];
+                this.explosionType = this.explosionTypes[Math.floor(Math.random() * this.explosionTypes.length)];
+                // 在浪漫日子提升心形概率（让心形更多一点）
+                if (Math.random() > 0.6) {
+                    this.explosionType = 'heartburst';
+                }
+                
+                this.palette = getRandomColorPalette();
+                this.exploded = true;
+                this.particles = [];
+                
+                // 粒子数量华丽升级
+                switch(this.explosionType) {
+                    case 'star':
+                        this.particleCount = Math.floor(Math.random() * 80) + 180;
+                        break;
+                    case 'radial':
+                        this.particleCount = Math.floor(Math.random() * 100) + 220;
+                        break;
+                    case 'heartburst':
+                        this.particleCount = Math.floor(Math.random() * 120) + 260; // 心形烟花更盛大
+                        break;
+                    default:
+                        this.particleCount = Math.floor(Math.random() * 90) + 150;
+                }
+                
+                this.explode();
+                
+                // 闪光特效 (更绚丽的爆炸闪光)
+                this.hasFlash = Math.random() > 0.2;
+                this.flashAlpha = this.hasFlash ? 0.85 : 0;
+                this.flashFade = 0.045;
+                // 额外记录星轨残留小光晕
+                this.glowColor = `rgba(255, 200, 150, 0.6)`;
+            }
+            
+            update() {
+                if (this.hasFlash && this.flashAlpha > 0) {
+                    this.flashAlpha -= this.flashFade;
+                }
+                
+                // 更新所有粒子
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    this.particles[i].update();
+                    this.particles[i].draw();
+                    if (this.particles[i].alpha <= 0) {
+                        this.particles.splice(i, 1);
+                    }
+                }
+                
+                // 绘制爆炸闪光 (光照区域扩大)
+                if (this.hasFlash && this.flashAlpha > 0) {
+                    ctx.save();
+                    ctx.globalAlpha = this.flashAlpha * 0.9;
+                    ctx.fillStyle = 'rgba(255, 220, 180, 0.9)';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, Math.random() * 18 + 22, 0, Math.PI * 2);
+                    ctx.fill();
+                    // 二次光晕
+                    ctx.globalAlpha = this.flashAlpha * 0.5;
+                    ctx.fillStyle = 'rgba(255, 160, 120, 0.5)';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, Math.random() * 12 + 30, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+            
+            draw() {
+                // 可选空实现
+            }
+            
+            explode() {
+                switch(this.explosionType) {
+                    case 'star': this.createStarShape(); break;
+                    case 'radial': this.createRadialShape(); break;
+                    case 'heartburst': this.createHeartShape(); break;
+                    default: this.createRandomShape();
+                }
+            }
+            
+            createRandomShape() {
+                for (let i = 0; i < this.particleCount; i++) {
+                    this.particles.push(new Particle(this.x, this.y, this.palette, 'random'));
+                }
+            }
+            
+            createStarShape() {
+                const points = 8;
+                const angleStep = (Math.PI * 2) / points;
+                for (let i = 0; i < this.particleCount; i++) {
+                    let angle;
+                    if (Math.random() > 0.25) {
+                        const point = Math.floor(Math.random() * points);
+                        angle = point * angleStep + (Math.random() - 0.5) * 0.35;
+                    } else {
+                        angle = Math.random() * Math.PI * 2;
+                    }
+                    const p = new Particle(this.x, this.y, this.palette, 'star');
+                    p.velocity.x = Math.cos(angle) * p.speed;
+                    p.velocity.y = Math.sin(angle) * p.speed;
+                    this.particles.push(p);
+                }
+            }
+            
+            createRadialShape() {
+                for (let i = 0; i < this.particleCount; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = Math.random() * 2.2 + 0.8;
+                    const p = new Particle(this.x, this.y, this.palette, 'radial');
+                    p.velocity.x = Math.cos(angle) * p.speed * distance;
+                    p.velocity.y = Math.sin(angle) * p.speed * distance;
+                    this.particles.push(p);
+                }
+            }
+            
+            // 核心浪漫：心形爆炸布局，让粒子扩散轨迹带有爱心轮廓
+            createHeartShape() {
+                // 心形参数方程: x = 16*sin(t)^3 , y = 13cos(t) - 5 cos(2t) - 2cos(3t) - cos(4t)
+                // 缩放因子并旋转使烟花自然扩散
+                for (let i = 0; i < this.particleCount; i++) {
+                    const t = Math.random() * Math.PI * 2;
+                    // 心形曲线公式(经典)
+                    let scale = 1.8 + Math.random() * 1.2;
+                    let heartX = 16 * Math.pow(Math.sin(t), 3);
+                    let heartY = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t);
+                    // 归一化方向向量，并加入随机偏移使得更自然
+                    let angle = Math.atan2(heartY, heartX);
+                    // 随机偏移一些，使其扩散仍然保持爱心轮廓但又有美感
+                    const randomSpread = (Math.random() - 0.5) * 0.8;
+                    angle += randomSpread;
+                    const speedFactor = 1.6 + Math.random() * 1.5;
+                    const p = new Particle(this.x, this.y, this.palette, 'heartburst');
+                    p.velocity.x = Math.cos(angle) * p.speed * speedFactor;
+                    p.velocity.y = Math.sin(angle) * p.speed * speedFactor;
+                    // 少许重力差异化，提升立体感
+                    p.gravity = 0.04 + Math.random() * 0.02;
+                    this.particles.push(p);
+                }
+                // 额外补加一些随机星尘，让心形烟花更饱满
+                for (let i = 0; i < 60; i++) {
+                    const p = new Particle(this.x, this.y, this.palette, 'heartburst');
+                    const randomAngle = Math.random() * Math.PI * 2;
+                    p.velocity.x = Math.cos(randomAngle) * p.speed * (Math.random() * 1.8);
+                    p.velocity.y = Math.sin(randomAngle) * p.speed * (Math.random() * 1.8);
+                    this.particles.push(p);
+                }
+            }
+            
+            isDone() {
+                return this.particles.length === 0 && this.flashAlpha <= 0;
+            }
+        }
+        
+        // ---------- 烟花总管理器，加强发射频率和节日特效 ----------
+        class FireworksManager {
+            constructor() {
+                this.fireworks = [];
+                this.lastFireworkTime = 0;
+                this.fireworkInterval = 900;  // 基础间隔更热闹
+                this.maxFireworks = 20;
+                // 背景闪烁特效: 用于全局微光
+                this.backgroundFlicker = 0;
+            }
+            
+            addFirework(x, y, forcedCount = 1) {
+                if (this.fireworks.length < this.maxFireworks) {
+                    if (forcedCount === 1) {
+                        this.fireworks.push(new Firework(x, y));
+                    } else {
+                        for(let i=0; i<forcedCount; i++) {
+                            if(this.fireworks.length < this.maxFireworks + 2) {
+                                let offsetX = (Math.random() - 0.5) * 70;
+                                let offsetY = (Math.random() - 0.5) * 70;
+                                this.fireworks.push(new Firework((x || Math.random()*canvas.width) + offsetX, (y || Math.random()*canvas.height*0.7) + offsetY));
+                            }
+                        }
+                    }
+                }
+            }
+            
+            addRandomFireworks() {
+                const count = Math.floor(Math.random() * 4) + 2;  // 2-5朵同时绽放，热闹
+                for (let i = 0; i < count; i++) {
+                    this.addFirework();
+                }
+            }
+            
+            update() {
+                // 残影效果 - 加深浪漫拖尾感，使用渐隐黑色背景让烟花轨迹显得绚丽
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // 动态调整间隔为随机让烟花不间断
+                const now = Date.now();
+                if (now - this.lastFireworkTime > this.fireworkInterval) {
+                    this.addRandomFireworks();
+                    this.lastFireworkTime = now;
+                    // 随机间隔加快节奏 (700ms ~ 1300ms)
+                    this.fireworkInterval = Math.random() * 700 + 600;
+                }
+                
+                // 除夕浪漫效果：偶然同时发射心形大烟花
+                if (Math.random() < 0.02 && this.fireworks.length < this.maxFireworks - 2) {
+                    // 随机位置接连放两组华丽烟花
+                    let randX = Math.random() * canvas.width;
+                    let randY = Math.random() * canvas.height * 0.6 + 100;
+                    this.fireworks.push(new Firework(randX, randY));
+                    setTimeoutEffect(randX, randY);
+                }
+                
+                function setTimeoutEffect(xx, yy) {
+                    // 额外增加一个小延迟烟花双子星
+                    setTimeout(() => {
+                        if(fireworksManager && fireworksManager.fireworks.length < fireworksManager.maxFireworks) {
+                            fireworksManager.fireworks.push(new Firework(xx + (Math.random()-0.5)*40, yy + (Math.random()-0.5)*40));
+                        }
+                    }, 80);
+                }
+                
+                // 更新所有烟花
+                for (let i = this.fireworks.length - 1; i >= 0; i--) {
+                    this.fireworks[i].update();
+                    if (this.fireworks[i].isDone()) {
+                        this.fireworks.splice(i, 1);
+                    }
+                }
+                
+                requestAnimationFrame(() => this.update());
+            }
+        }
+        
+        const fireworksManager = new FireworksManager();
+        fireworksManager.update();
+        
+        // 点击屏幕燃放3~5簇烟花且更符合心意
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const count = Math.floor(Math.random() * 3) + 3; // 3到5个
+            for(let i = 0; i < count; i++) {
+                const offsetX = (Math.random() - 0.5) * 75;
+                const offsetY = (Math.random() - 0.5) * 75;
+                fireworksManager.addFirework(x + offsetX, y + offsetY);
+            }
+            // 增加额外惊喜，在点击处再爆一个心形烟花
+            setTimeout(() => {
+                if(fireworksManager.fireworks.length < fireworksManager.maxFireworks) {
+                    fireworksManager.addFirework(x, y);
+                }
+            }, 50);
+        });
+        
+        // 增加移动端的触摸支持，同样可触发烟花
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            const count = Math.floor(Math.random() * 3) + 3;
+            for(let i = 0; i < count; i++) {
+                const offsetX = (Math.random() - 0.5) * 70;
+                const offsetY = (Math.random() - 0.5) * 70;
+                fireworksManager.addFirework(x + offsetX, y + offsetY);
+            }
+        });
+        
+        // 初始热烈绽放多个烟花
+        for(let i = 0; i < 5; i++) {
+            setTimeout(() => {
+                fireworksManager.addRandomFireworks();
+            }, i * 200);
+        }
+        
+        // 动态也让画布背景偶尔有微光闪烁，更浪漫
+        setInterval(() => {
+            if(Math.random() > 0.85) {
+                // 轻微全局夜空闪烁效果 (透过canvas半透明光晕)
+                const overlay = document.createElement('div');
+                // 不必实际添加，直接通过画布? 快速在ctx上做整体叠加会破坏，但我们可以通过短暂的白色透明闪动（不影响文字区域）
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.fillStyle = `rgba(255, 200, 180, 0.03)`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.restore();
+            }
+        }, 800);
+        
+        // 附加小彩蛋：在屏幕边缘随机飘落花瓣粒子（简单光点无关烟花，增加气氛）
+        class Glitter {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = 0 - Math.random() * 30;
+                this.size = Math.random() * 2 + 1;
+                this.speedY = Math.random() * 1 + 0.7;
+                this.alpha = Math.random() * 0.5 + 0.3;
+                this.color = `hsl(${Math.random() * 40 + 320}, 80%, 65%)`;
+            }
+            update() {
+                this.y += this.speedY;
+                if(this.y > canvas.height + 20) return false;
+                return true;
+            }
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = this.alpha;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+        let glitters = [];
+        function addGlitter() {
+            if(glitters.length < 80 && Math.random() < 0.3) {
+                glitters.push(new Glitter());
+            }
+            for(let i=0;i<glitters.length;i++) {
+                if(!glitters[i].update()) {
+                    glitters.splice(i,1);
+                    i--;
+                } else {
+                    glitters[i].draw();
+                }
+            }
+            requestAnimationFrame(addGlitter);
+        }
+        addGlitter();
+        
+        // 确保文字显示在最前且不受影响，已经在z-index保持
+    </script>
+</body>
+</html>
